@@ -1,6 +1,13 @@
 package toDo.ui;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -39,10 +46,13 @@ public class toDoUi extends Application {
 	private HBox top = new HBox();
 	private Region spacer = new Region();
 	ListView<String> list = new ListView<String>();
-	ObservableList<String> items =FXCollections.observableArrayList("test", "putzen");
+	ObservableList<String> items =FXCollections.observableArrayList();
+	private final String filePath = "tasks.txt";
 
 	
 	public void start(Stage primaryStage) throws Exception{
+		loadTasksFromFile();
+		
 		toDo.setTextFill(Color.WHITE);
 		toDo.setFont(Font.font("System", FontWeight.BOLD, 14));
 		newTask.setStyle("-fx-background-color: #3285a8; -fx-text-fill: #ffffff");
@@ -61,6 +71,7 @@ public class toDoUi extends Application {
             dialog.showAndWait().ifPresent(input -> {
                 if (!input.trim().isEmpty()) {
                     items.add(input);
+                    saveTasksToFile();
                 }
             });
             primaryStage.setAlwaysOnTop(true);
@@ -83,7 +94,10 @@ public class toDoUi extends Application {
             	checkBox.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff");
             	setStyle("-fx-background-color: #000000");
             	
-            	delete.setOnAction(event -> getListView().getItems().remove(getItem()));
+            	delete.setOnAction(event -> {
+            	getListView().getItems().remove(getItem());
+            	saveTasksToFile();
+            	});
             }
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -126,6 +140,30 @@ public class toDoUi extends Application {
 		System.exit(-1);
 		}
 		return button;
+	}
+	
+	void saveTasksToFile() {
+		try(BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+			for (String task : items) {
+				writer.write(task);
+				writer.newLine();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	void loadTasksFromFile() {
+		if (Files.exists(Paths.get(filePath))) {
+			try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					items.add(line);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public static void main(String[] args) {

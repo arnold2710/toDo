@@ -27,6 +27,7 @@ import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -39,20 +40,19 @@ import javafx.stage.Stage;
 public class toDoUi extends Application {
 	private Label toDo = new Label("To Do");
 	private Button newTask = new Button("New Task");
-	private Label all = new Label("ALL");
-	private Label inProgress = new Label("IN PROGRESS");
-	private Label completed = new Label("COMPLETED");
 	private VBox main = new VBox();
 	private HBox top = new HBox();
 	private Region spacer = new Region();
-	ListView<String> list = new ListView<String>();
-	ObservableList<String> items =FXCollections.observableArrayList();
+	ListView<Task> list = new ListView<Task>();
+	ObservableList<Task> items =FXCollections.observableArrayList();
 	private final String filePath = "tasks.txt";
+	private CheckBox setAlwaysOnTop = new CheckBox("Always On Top");
+	boolean changeAlwaysOnTop = false;
 
 	
 	public void start(Stage primaryStage) throws Exception{
 		loadTasksFromFile();
-		
+		setAlwaysOnTop.setStyle("-fx-text-fill: #ffffff");
 		toDo.setTextFill(Color.WHITE);
 		toDo.setFont(Font.font("System", FontWeight.BOLD, 14));
 		newTask.setStyle("-fx-background-color: #3285a8; -fx-text-fill: #ffffff");
@@ -62,15 +62,18 @@ public class toDoUi extends Application {
 		
 		newTask.setOnAction(e -> {
             TextInputDialog dialog = new TextInputDialog();
+            dialog.getDialogPane().setStyle("-fx-background-color: #000000");
             dialog.setTitle("Add Task");
             dialog.setHeaderText(null);
             dialog.setGraphic(null);
             dialog.setContentText("New Task:");
-            dialog.getDialogPane().setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff");
+            dialog.getDialogPane().lookupAll(".label").forEach(node -> {
+                ((Label) node).setStyle("-fx-text-fill: #ffffff;");
+            });
             primaryStage.setAlwaysOnTop(false);
             dialog.showAndWait().ifPresent(input -> {
                 if (!input.trim().isEmpty()) {
-                    items.add(input);
+                    items.add(new Task(input));
                     saveTasksToFile();
                 }
             });
@@ -98,28 +101,46 @@ public class toDoUi extends Application {
             	getListView().getItems().remove(getItem());
             	saveTasksToFile();
             	});
+            	
+            	checkBox.setOnAction(e -> {
+            		Task task = getItem();
+            		if (task != null) {
+            			task.setCompleted(checkBox.isSelected());
+            		}
+            	});
             }
             @Override
-            protected void updateItem(String item, boolean empty) {
+            protected void updateItem(Task item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setGraphic(null);
                 } else {
-                    checkBox.setText(item);
-                    checkBox.setSelected(false);
+                    checkBox.setText(item.getName());
+                    checkBox.setSelected(item.isCompleted());
                     setGraphic(hbox);
                 }
             }
         });
         
-	       
-		main.getChildren().addAll(top, list);
+        setAlwaysOnTop.setOnAction(e -> {
+        	if (changeAlwaysOnTop == false) {
+        		changeAlwaysOnTop = true;
+        		primaryStage.setAlwaysOnTop(changeAlwaysOnTop);
+        	} else {
+        		changeAlwaysOnTop = false;
+        		primaryStage.setAlwaysOnTop(changeAlwaysOnTop);
+        	}
+        });
+        
+		main.getChildren().addAll(top, list, setAlwaysOnTop);
+		main.setPadding(new Insets(0, 0, 5, 5));
 		main.setBackground(null);
 		primaryStage.setTitle("toDo");
 		Scene scene = new Scene(main, 600, 400);
 		scene.setFill(Color.BLACK);
+		primaryStage.getIcons().add(new Image("/icon/logo.png"));
 		primaryStage.setScene(scene);
-		primaryStage.setAlwaysOnTop(true);
+		primaryStage.setAlwaysOnTop(changeAlwaysOnTop);
 		primaryStage.show();
 	}
 	
@@ -144,8 +165,8 @@ public class toDoUi extends Application {
 	
 	void saveTasksToFile() {
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-			for (String task : items) {
-				writer.write(task);
+			for (Task task : items) {
+				writer.write(task.getName() + ";" + task.isCompleted());
 				writer.newLine();
 			}
 		} catch (IOException e) {
@@ -158,7 +179,14 @@ public class toDoUi extends Application {
 			try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
 				String line;
 				while ((line = reader.readLine()) != null) {
-					items.add(line);
+					String[] parts = line.split(";");
+					if (parts.length == 2) {
+						String name = parts[0];
+						boolean completed = Boolean.parseBoolean(parts[1]);
+						Task task = new Task(name);
+						task.setCompleted(completed);
+						items.add(task);
+					}
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
